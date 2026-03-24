@@ -8,11 +8,13 @@ library(dplyr)
 library(plotly)
 
 
+  # edit to your working directory
 setwd("C:\\ ")
 
 
 ### subset to FMD-related imports
 
+  # edit to your data file name
 # load trade RData
 load("tradeFEB2026.RData")
 
