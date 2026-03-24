@@ -1,0 +1,154 @@
+# FMD-related trade 
+# March 2026
+# done on 'Arrival Full Date', and 'Commodities Origin Country Name '
+  # also optionally on 'Commodities Consigned Country Name', to check for re-routing of trade
+
+
+library(dplyr)
+library(plotly)
+
+
+setwd("C:\\ ")
+
+
+### subset to FMD-related imports
+
+# load trade RData
+load("tradeFEB2026.RData")
+
+# make into dataframe
+tradeFEB2026_df <- as.data.frame(tradeFEB2026)
+
+prefixes <- c("0201", "0202", "0401", "0405", "0406", "2105", "0203", "160250", "020410", "020421", "020422", "020423", "020430", "020441", "020442", "020443", "020630", "020641", "020649", "021011", "021012", "021019", "160100", "160241", "160242", "160249", "040229", "040221", "040210", "040291", "040299", "040320", "040390", "040410", "040490", "02061095", "02061098", "02062100", "02062200", "02062991", "02062999", "02061010", "02062910", "02102010", "02102090", "02068099", "02069099", "16029091",
+              "0102", "0103", "0104", "0106130000",  # live animals (but these are not in this extract of trade)
+              "02089030", "0504000010", "1214909020", "1214909020", "51011100", "51011900", "51021100", "51021930", "51021940", "51022000")  # game, casings, hay, wool, hair
+
+pattern <- paste0("^(", paste(prefixes, collapse = "|"), ")")
+
+trade_all <- tradeFEB2026_df %>%
+  filter(grepl(pattern, `Commodity Code`))
+
+saveRDS(trade_all, file = "trade_FMD.rds")
+
+
+
+### wrangle
+
+# load FMD-related SPS imports
+trade_FMD <- readRDS("trade_FMD.rds")
+
+# see how many were 'not acceptable'
+nrow(trade_FMD[trade_FMD$Decision == "Non Acceptable", ] )
+
+# add column to count
+trade_FMD$count <- 1
+
+# make columns of month and year
+trade_FMD$ArrivalMonth <- format(trade_FMD$`Arrival Full Date`, "%m")
+trade_FMD$ArrivalYear  <- format(trade_FMD$`Arrival Full Date`, "%Y")
+
+# remove typo years (i.e. any year other than 2024 - 2026 onwards)
+trade_FMD1 <- trade_FMD[trade_FMD$ArrivalYear %in% c(2024, 2025, 2026), ]
+# save
+saveRDS(trade_FMD1, file = "trade_FMD1.rds")
+
+
+
+
+# load wrangled FMD-related imports
+trade_FMD1 <- readRDS("trade_FMD1.rds")
+
+# make separate dataframes for each year
+trade_FMD2024 <- trade_FMD1[trade_FMD$ArrivalYear == "2024", ] 
+trade_FMD2025 <- trade_FMD1[trade_FMD$ArrivalYear == "2025", ] 
+trade_FMD2026 <- trade_FMD1[trade_FMD$ArrivalYear == "2026", ] 
+
+
+
+
+### make zoomable plot of calendar day of the year
+
+library(lubridate)
+
+## by calendar date, but each year kept separate
+
+# Function to create a plot for a single year
+make_plot <- function(df, yr) {
+  
+  plot_data <- df %>%
+    filter(ArrivalYear == yr) %>%
+    group_by(
+      ArrivalDate = `Arrival Full Date`,
+      Commodities_Origin_Country_Name = `Commodities Origin Country Name`  # `Commodities Consigned Country Name`
+    ) %>%
+    summarise(
+      total_count = sum(count, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  plot_ly(
+    data = plot_data,
+    x = ~ArrivalDate,
+    y = ~total_count,
+    color = ~Commodities_Origin_Country_Name,   # Commodities Consigned Country Name
+    split = ~Commodities_Origin_Country_Name,   # Commodities Consigned Country Name
+    type = "scatter",
+    mode = "lines",
+    hoverinfo = "text",
+    text = ~paste(
+      "Country:", Commodities_Origin_Country_Name,   # Commodities Consigned Country Name
+      "<br>Date:", format(ArrivalDate, "%Y-%m-%d"),
+      "<br>Total count:", total_count
+    )
+  ) %>%
+    layout(
+      title = paste("FMD-related Commodity Import Counts for", yr),
+      xaxis = list(title = "Calendar Date"),
+      yaxis = list(title = "Total FMD-related Consignments"),
+      legend = list(title = list(text = "Origin Country"))   # Consigned Country
+    )
+}
+
+# Create three separate plot objects
+plot_2024 <- make_plot(trade_FMD1, "2024")
+plot_2025 <- make_plot(trade_FMD1, "2025")
+plot_2026 <- make_plot(trade_FMD1, "2026")
+
+# Display
+plot_2024
+plot_2025
+plot_2026
+
+# Save
+htmlwidgets::saveWidget(plot_2024, "plot_2024.html")   # cons
+htmlwidgets::saveWidget(plot_2025, "plot_2025.html")   # cons
+htmlwidgets::saveWidget(plot_2026, "plot_2026.html")   # cons
+
+
+
+
+# interrogate to imports of particular dates and countries
+
+FMD_imports <- trade_FMD1[
+  trade_FMD1$`Commodities Origin Country Name` == "Germany" &
+    trade_FMD1$`Arrival Full Date` >= as.POSIXct("2025-01-10") &
+    trade_FMD1$`Arrival Full Date` <= as.POSIXct("2025-01-30"),
+]
+
+FMD_imports <- trade_FMD1[
+  trade_FMD1$`Commodities Origin Country Name` == "Hungary" &
+    trade_FMD1$`Arrival Full Date` >= as.POSIXct("2025-03-07") &
+    trade_FMD1$`Arrival Full Date` <= as.POSIXct("2025-04-07"),
+]
+
+FMD_imports <- trade_FMD1[
+  trade_FMD1$`Commodities Origin Country Name` == "Slovakia" &
+    trade_FMD1$`Arrival Full Date` >= as.POSIXct("2025-03-21") &
+    trade_FMD1$`Arrival Full Date` <= as.POSIXct("2025-04-21"),
+]
+
+ # view
+# FMD_imports[,c(1:10)]
+
+# save as csv
+write.csv(FMD_imports, "FMD_imports.csv", row.names = FALSE)
