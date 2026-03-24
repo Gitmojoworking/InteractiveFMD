@@ -8,7 +8,7 @@ library(dplyr)
 library(plotly)
 
 
-  # edit to your working directory
+  # edit to your working directory, where your data file is
 setwd("C:\\ ")
 
 
