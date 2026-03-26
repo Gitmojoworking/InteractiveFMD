@@ -154,3 +154,62 @@ FMD_imports <- trade_FMD1[
 
 # save as csv
 write.csv(FMD_imports, "FMD_imports.csv", row.names = FALSE)
+
+
+
+#-------------------------------------------
+# NEW: WEEKLY PLOTS
+#-------------------------------------------
+make_weekly_plot <- function(df, yr) {
+  
+  weekly_data <- df %>%
+    filter(ArrivalYear == yr) %>%
+    mutate(ArrivalWeek = floor_date(`Arrival Full Date`, "week")) %>%
+    group_by(
+      ArrivalWeek,
+      Commodities_Origin_Country_Name = `Commodities Origin Country Name`   # Commodities_Consigned_Country_Name  ... Commodities Consigned Country Name
+    ) %>%
+    summarise(
+      total_count = sum(count, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  plot_ly(
+    data = weekly_data,
+    x = ~ArrivalWeek,
+    y = ~total_count,
+    color = ~Commodities_Origin_Country_Name,   # Commodities_Consigned Country_Name
+    split = ~Commodities_Origin_Country_Name,   # Commodities_Consigned_Country_Name
+    type = "scatter",
+    mode = "lines",
+    hoverinfo = "text",
+    text = ~paste(
+      "Country:", Commodities_Origin_Country_Name,  # Commodities_Consigned_Country_Name
+      "<br>Week beginning:", format(ArrivalWeek, "%Y-%m-%d"),
+      "<br>Total count:", total_count
+    )
+  ) %>%
+    layout(
+      title = paste("FMD-related Commodity Import Counts (Weekly) for", yr),
+      xaxis = list(title = "Week (ISO week start)"),
+      yaxis = list(title = "Total FMD-related Consignments (Weekly Total)"),
+      legend = list(title = list(text = "Origin Country"))  # Consigned Country
+    )
+}
+
+
+# create plots of counts per week
+
+weekly_2024 <- make_weekly_plot(trade_FMD1, "2024")
+weekly_2025 <- make_weekly_plot(trade_FMD1, "2025")
+weekly_2026 <- make_weekly_plot(trade_FMD1, "2026")
+
+# Display
+weekly_2024
+weekly_2025
+weekly_2026
+
+# Save
+htmlwidgets::saveWidget(weekly_2024, "weekly_2024.html")   # cons
+htmlwidgets::saveWidget(weekly_2025, "weekly_2025.html")   # cons
+htmlwidgets::saveWidget(weekly_2026, "weekly_2026.html")   # cons
